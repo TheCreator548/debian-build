@@ -1,65 +1,60 @@
-#!/usr/bin/env bash
-# build-debian-gnome-live.sh
-#
-# Builds a custom Debian 13 (trixie) live ISO with a full GNOME desktop.
-# Boots straight into a live GNOME session — works in VirtualBox, on
-# real hardware, or from a USB stick.
-#
-# REQUIREMENTS
-#   - A Debian or Ubuntu machine/VM with real internet access
-#     (your own PC, WSL2, or a cloud VM)
-#   - Run as root
-#   - ~20GB free disk space
-#   - 20-60+ minutes depending on your connection and CPU
-#
-# USAGE
-#   chmod +x build-debian-gnome-live.sh
-#   sudo ./build-debian-gnome-live.sh
-#
-# OUTPUT
-#   debian-gnome-live/live-image-amd64.hybrid.iso
-#   -> attach this file to a VirtualBox VM's optical drive and boot
+name: Build novaOS ISO
 
-set -euo pipefail
+on:
+  workflow_dispatch:
+    inputs:
+      distro:
+        description: "Base distro"
+        required: false
+        default: "ubuntu"
+        type: choice
+        options: [ubuntu, debian]
+      codename:
+        description: "Release codename (blank = default: noble/bookworm)"
+        required: false
+        default: ""
+      os_name:
+        description: "OS name baked into the ISO"
+        required: false
+        default: "novaOS"
 
-if [ "$(id -u)" -ne 0 ]; then
-    echo "Run this as root: sudo $0" >&2
-    exit 1
-fi
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Full GNOME live-build can take a while and eat disk space —
+    # give it room on both fronts.
+    timeout-minutes: 300
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
 
-BUILD_DIR="debian-gnome-live"
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+          df -h
 
-echo "==> Installing live-build and dependencies"
-apt-get update
-apt-get install -y live-build debootstrap xorriso squashfs-tools \
-    isolinux syslinux-utils dosfstools mtools
+      - name: Make build script executable
+        run: chmod +x ./ci-build-iso.sh
 
-echo "==> Setting up build directory: $BUILD_DIR"
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
+      - name: Build ISO
+        id: build
+        run: ./ci-build-iso.sh
+        env:
+          DISTRO: ${{ inputs.distro }}
+          CODENAME: ${{ inputs.codename }}
+          OS_NAME: ${{ inputs.os_name }}
 
-echo "==> Configuring live-build (Debian trixie, amd64)"
-lb config \
-    --distribution trixie \
-    --architecture amd64 \
-    --archive-areas "main contrib non-free non-free-firmware" \
-    --mirror-bootstrap http://deb.debian.org/debian/ \
-    --mirror-binary http://deb.debian.org/debian/ \
-    --binary-images iso-hybrid \
-    --iso-application "Debian GNOME Custom" \
-    --iso-volume "DEBIAN_GNOME"
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.os_name }}-iso
+          path: artifacts/*.iso
+          retention-days: 14
 
-echo "==> Adding the GNOME desktop task"
-mkdir -p config/package-lists
-cat > config/package-lists/desktop.list.chroot << 'EOF'
-task-gnome-desktop
-EOF
-# Add more packages above, one per line, to bake in extra tools/apps.
-
-echo "==> Building the ISO — this is the long part, go grab a coffee"
-lb build
-
-echo
-echo "==> Done. Your ISO:"
-ls -la "$(pwd)"/*.iso
-
+      - name: Summary
+        if: always()
+        run: |
+          echo "### novaOS build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Distro: ${{ inputs.distro }} ${{ inputs.codename }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ISO: ${{ steps.build.outputs.iso_path }}" >> "$GITHUB_STEP_SUMMARY"
