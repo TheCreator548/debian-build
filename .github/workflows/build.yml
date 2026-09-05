@@ -1,25 +1,60 @@
-name: Build Debian ISO
-on: [workflow_dispatch] # Allows you to start it manually with one click
+name: Build novaOS ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      distro:
+        description: "Base distro"
+        required: false
+        default: "ubuntu"
+        type: choice
+        options: [ubuntu, debian]
+      codename:
+        description: "Release codename (blank = default: noble/bookworm)"
+        required: false
+        default: ""
+      os_name:
+        description: "OS name baked into the ISO"
+        required: false
+        default: "novaOS"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Full GNOME live-build can take a while and eat disk space —
+    # give it room on both fronts.
+    timeout-minutes: 300
     steps:
-      - name: Checkout Code
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Install Debian Build Tools
+      - name: Free up disk space
         run: |
-          sudo apt update
-          sudo apt install -y debootstrap live-build squashfs-tools xorriso grub-pc-bin mtools binutils ca-certificates
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+          df -h
 
-      - name: Make Script Executable & Run
-        run: |
-          chmod +x build.sh
-          sudo ./build.sh
+      - name: Make build script executable
+        run: chmod +x ./ci-build-iso.sh
 
-      - name: Upload Finished ISO
+      - name: Build ISO
+        id: build
+        run: ./ci-build-iso.sh
+        env:
+          DISTRO: ${{ inputs.distro }}
+          CODENAME: ${{ inputs.codename }}
+          OS_NAME: ${{ inputs.os_name }}
+
+      - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debian-gnome-iso
-          path: ./*.iso # This looks for any file ending in .iso in the folder
+          name: ${{ inputs.os_name }}-iso
+          path: artifacts/*.iso
+          retention-days: 14
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### novaOS build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Distro: ${{ inputs.distro }} ${{ inputs.codename }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ISO: ${{ steps.build.outputs.iso_path }}" >> "$GITHUB_STEP_SUMMARY"
