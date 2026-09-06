@@ -136,7 +136,17 @@ async function main() {
   await mkdir(opts.out, { recursive: true });
   run('lb', [
     'config',
-    '--mode', opts.distro,
+    // NOTE: --mode is intentionally always "debian", even when building
+    // Ubuntu. lb_config's "ubuntu" mode has a long-standing, still-open
+    // upstream bug (Launchpad #1739790): it tries to install a graphical
+    // syslinux theme package (syslinux-themes-ubuntu-oneiric /
+    // gfxboot-theme-ubuntu) that was removed from Ubuntu's archives back
+    // in the Precise/Trusty era and no longer exists on any current
+    // release. "debian" mode has no such lookup and builds a real Ubuntu
+    // system fine as long as the distribution/mirrors/archive-areas below
+    // still point at Ubuntu — mode only changes internal defaults like
+    // this theme selection, not which packages/mirrors get used.
+    '--mode', 'debian',
     '--distribution', opts.codename,
     '--archive-areas', profile.archiveAreas,
     '--mirror-bootstrap', profile.mirror,
@@ -144,11 +154,6 @@ async function main() {
     '--mirror-binary-security', profile.securityMirror,
     '--mirror-chroot-security', profile.securityMirror,
     '--binary-images', 'iso-hybrid',
-    // live-build's default BIOS bootloader (syslinux) pulls in
-    // gfxboot-theme-ubuntu via syslinux-themes-ubuntu-oneiric — a package
-    // tied to Ubuntu 11.10 that no longer exists in any current archive.
-    // GRUB has no such dependency and covers both BIOS and UEFI boot.
-    '--bootloaders', 'grub-pc,grub-efi',
     '--debian-installer', 'false',
     '--iso-application', opts.name,
     '--iso-volume', opts.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16) || 'CUSTOMOS',
