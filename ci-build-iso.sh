@@ -98,15 +98,12 @@ function distroProfile(distro) {
         mirror: 'http://archive.ubuntu.com/ubuntu',
         securityMirror: 'http://security.ubuntu.com/ubuntu',
         theme: { gtk: 'Yaru-dark', icon: 'Yaru', cursor: 'Yaru' },
-        extraPkgs: ['ubuntu-standard', 'yaru-theme-gtk', 'yaru-theme-icon', 'yaru-theme-sound',
-          'gnome-shell-extension-dashtodock', 'firefox'],
       }
     : {
         archiveAreas: 'main contrib non-free non-free-firmware',
         mirror: 'http://deb.debian.org/debian',
         securityMirror: 'http://deb.debian.org/debian-security',
         theme: { gtk: 'Adwaita-dark', icon: 'Adwaita', cursor: 'Adwaita' },
-        extraPkgs: ['firmware-linux-free', 'gnome-themes-extra'],
       };
 }
 
@@ -161,15 +158,16 @@ async function main() {
     '# Desktop — GNOME, always',
     'gnome-core', 'gnome-shell', 'gnome-terminal', 'gnome-control-center',
     'gnome-tweaks', 'nautilus', 'gdm3', '',
-    '# Browser',
-    'firefox-esr', ...(opts.distro === 'ubuntu' ? ['firefox'] : []), '',
+    '# Browser — Ubuntu only ships the "firefox" transitional/snap package,',
+    '# Debian only ships firefox-esr; never request both on the same distro.',
+    ...(opts.distro === 'ubuntu' ? ['firefox'] : ['firefox-esr']), '',
     '# Networking (ethernet/DHCP + NetworkManager GUI applet)',
     'network-manager', 'network-manager-gnome', 'net-tools', 'isc-dhcp-client', 'openssh-client', '',
     '# VirtualBox guest integration',
     'virtualbox-guest-utils', 'virtualbox-guest-x11', '',
     '# Theming',
     ...(opts.distro === 'ubuntu'
-      ? ['yaru-theme-gtk', 'yaru-theme-icon', 'yaru-theme-sound', 'gnome-shell-extension-dashtodock']
+      ? ['yaru-theme-gtk', 'yaru-theme-icon', 'yaru-theme-sound', 'gnome-shell-extension-ubuntu-dock']
       : ['gnome-themes-extra']),
     'gnome-shell-extension-appindicator', 'fonts-cantarell', 'fonts-noto-core', '',
     '# Boot splash',
