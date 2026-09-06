@@ -144,7 +144,7 @@ async function main() {
     '--mirror-binary-security', profile.securityMirror,
     '--mirror-chroot-security', profile.securityMirror,
     '--binary-images', 'iso-hybrid',
-    '--debian-installer', 'none',
+    '--debian-installer', 'false',
     '--iso-application', opts.name,
     '--iso-volume', opts.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16) || 'CUSTOMOS',
     '--linux-flavours', 'generic',
