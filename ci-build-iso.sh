@@ -144,6 +144,11 @@ async function main() {
     '--mirror-binary-security', profile.securityMirror,
     '--mirror-chroot-security', profile.securityMirror,
     '--binary-images', 'iso-hybrid',
+    // live-build's default BIOS bootloader (syslinux) pulls in
+    // gfxboot-theme-ubuntu via syslinux-themes-ubuntu-oneiric — a package
+    // tied to Ubuntu 11.10 that no longer exists in any current archive.
+    // GRUB has no such dependency and covers both BIOS and UEFI boot.
+    '--bootloaders', 'grub-pc,grub-efi',
     '--debian-installer', 'false',
     '--iso-application', opts.name,
     '--iso-volume', opts.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16) || 'CUSTOMOS',
