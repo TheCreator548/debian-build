@@ -36,14 +36,22 @@ echo "=================================================="
 # ---------- 1. Install Node.js 24 (system-wide, so it's visible under sudo) ----------
 echo
 echo "=== 1. Installing Node.js 24 ==="
-if command -v node >/dev/null 2>&1 && node --version | grep -q '^v24\.'; then
-  echo "Node 24 already present: $(node --version)"
+# GitHub-hosted runners ship several Node versions pre-installed under
+# /opt/hostedtoolcache, and that path is often ahead of /usr/bin on PATH.
+# So even after installing Node 24 system-wide, a plain `node` lookup can
+# still resolve to an older cached version. To avoid that, install via
+# NodeSource (which places the binary at /usr/bin/node) and then always
+# call that exact path explicitly instead of trusting `command -v node`.
+NODE_BIN="/usr/bin/node"
+
+if [ -x "$NODE_BIN" ] && "$NODE_BIN" --version | grep -q '^v24\.'; then
+  echo "Node 24 already present: $("$NODE_BIN" --version)"
 else
   curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
-echo "Using Node: $(node --version)"
-node --version | grep -q '^v24\.' || { echo "ERROR: Node 24 is required but not active."; exit 1; }
+echo "Using Node: $("$NODE_BIN" --version)"
+"$NODE_BIN" --version | grep -q '^v24\.' || { echo "ERROR: Node 24 is required but not active. Found: $("$NODE_BIN" --version 2>&1)"; exit 1; }
 
 # ---------- 2. Install live-build tooling ----------
 echo
@@ -256,12 +264,12 @@ main().catch(err => {
 NODE_EOF
 
 echo "Wrote $BUILD_JS"
-node --check "$BUILD_JS"
+"$NODE_BIN" --check "$BUILD_JS"
 
 # ---------- 4. Run the build as root ----------
 echo
 echo "=== 4. Running build-os.mjs as root ==="
-sudo "$(command -v node)" "$BUILD_JS" \
+sudo "$NODE_BIN" "$BUILD_JS" \
   --distro "$DISTRO" \
   --codename "$CODENAME" \
   --name "$OS_NAME" \
